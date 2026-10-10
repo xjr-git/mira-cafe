@@ -8,6 +8,10 @@ const $ = (id) => document.getElementById(id);
 const input = $('text-input'), sendBtn = $('send'), pttBtn = $('ptt'), stopBtn = $('interrupt');
 const subtitleEl = $('subtitle'), hudMode = $('hud-mode'), hudLatency = $('hud-latency');
 
+// 30ms silent WAV - a REAL audio source is required to unlock mobile
+// playback (empty-src Audio.play() does not unlock on iOS)
+const SILENCE_WAV = 'data:audio/wav;base64,UklGRgQCAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YeABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+
 // ---- session state ----
 let state = 'idle';            // idle | listening | thinking | speaking
 let latestRound = -1;          // newest accepted round_id
@@ -32,19 +36,45 @@ function enqueueAudio(ev) {
   playQueue.sort((a, b) => a.seq - b.seq);
   if (!curAudio) playNext();
 }
+
+// leave the last subtitle readable for a moment before going idle,
+// so a failed-playback round never "flashes" the text away
+function maybeIdle() {
+  if (curAudio || playQueue.length || state !== 'speaking') return;
+  setTimeout(() => {
+    if (!curAudio && !playQueue.length && state === 'speaking') setState('idle');
+  }, 1800);
+}
+
+let autoplayToasted = false;
 function playNext() {
   if (!playQueue.length) {
     setTalk(false);
-    if (state === 'speaking') setState('idle');
+    maybeIdle();
     return;
   }
   const ev = playQueue.shift();
   const audio = new Audio(ev.url);
+  audio.preload = 'auto';
   curAudio = audio;
   setTalk(true);
-  audio.play().catch(() => { nextAfter(audio); });
   audio.onended = () => nextAfter(audio);
   audio.onerror = () => { toast('语音播放失败，仅显示字幕'); nextAfter(audio); };
+  audio.play().catch(() => {
+    // mobile autoplay policy: one retry after a short delay, then
+    // degrade to subtitle-only instead of instantly clearing the text
+    setTimeout(() => {
+      if (curAudio !== audio) return;
+      const p = audio.play();
+      if (p) p.catch(() => {
+        if (!autoplayToasted) {
+          toast('浏览器限制了自动播放，点一下屏幕后重试；本轮仅显示字幕');
+          autoplayToasted = true;
+        }
+        nextAfter(audio);
+      });
+    }, 200);
+  });
 }
 function nextAfter(audio) {
   if (curAudio === audio) { curAudio = null; playNext(); }
@@ -76,8 +106,9 @@ async function interrupt(source) {
 // ---- chat over SSE ----
 async function chat(text) {
   if (!text || abortCtrl) return;
-  abortCtrl = new AbortController();
-  tSend = performance.now();
+  const ctrl = new AbortController();          // per-round controller:
+  abortCtrl = ctrl;                            // cleared on EVERY exit path,
+  tSend = performance.now();                   // or the next round never starts
   setState('thinking');
   subtitleEl.textContent = '…';
 
@@ -86,7 +117,7 @@ async function chat(text) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
-      signal: abortCtrl.signal,
+      signal: ctrl.signal,
     });
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -107,7 +138,7 @@ async function chat(text) {
       setState('idle');
     }
   } finally {
-    if (abortCtrl && abortCtrl.signal.aborted) abortCtrl = null;
+    if (abortCtrl === ctrl) abortCtrl = null;  // BUGFIX: was only cleared on abort
   }
 }
 
@@ -140,7 +171,7 @@ function handleSSE(chunk) {
     case 'notice': toast(data.message); break;
     case 'error': toast('出错了：' + data.message); setState('idle'); break;
     case 'done':
-      if (!curAudio && !playQueue.length) setState('idle');
+      maybeIdle();                             // never flash-clear subtitles
       break;
   }
 }
@@ -167,10 +198,12 @@ bindVoice((text) => { input.value = ''; chat(text); }, (src) => interrupt(src), 
 // unlock audio on first gesture (mobile autoplay policy) + rain ambience
 const unlock = () => {
   startAmbience();                            // synthesized rain, fades in
-  const a = new Audio(); a.play().then(() => a.pause()).catch(() => {});
+  const a = new Audio(SILENCE_WAV);           // real source = real unlock
+  a.play().then(() => a.pause()).catch(() => {});
   removeEventListener('pointerdown', unlock);
 };
 addEventListener('pointerdown', unlock);
+addEventListener('touchend', () => {}, { passive: true }); // iOS sticky-activation helper
 
 // ---- boot ----
 (async function boot() {

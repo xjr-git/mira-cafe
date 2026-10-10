@@ -74,6 +74,7 @@ export function startAmbience() {
     rainGain = rainCtx.createGain();
     rainGain.gain.value = 0;
     src.connect(lp).connect(rainGain).connect(rainCtx.destination);
+    if (rainCtx.state === 'suspended') rainCtx.resume().catch(() => {});
     src.start();
     rainGain.gain.linearRampToValueAtTime(0.055, rainCtx.currentTime + 2.8);
   } catch { /* audio unavailable: scene still works silently */ }

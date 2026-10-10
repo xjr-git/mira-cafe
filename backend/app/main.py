@@ -48,21 +48,12 @@ def sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-def split_sentences(text: str) -> list[str]:
-    parts = [p for p in re.split(r"(?<=[。！？…；!?;\n])", text) if p and p.strip()]
-    # drop fragments with nothing pronounceable (e.g. a bare "……")
-    parts = [p for p in parts if re.search(r"[\u4e00-\u9fff\u3040-\u30ffA-Za-z0-9]", p)]
-    if not parts and text.strip():
-        parts = [text.strip()]
-    # merge ultra-short fragments into neighbours to avoid choppy audio
-    merged: list[str] = []
-    for p in parts:
-        p = p.strip()
-        if merged and len(p) <= 2:
-            merged[-1] += p
-        else:
-            merged.append(p)
-    return merged
+async def _synth_or_none(text: str) -> str:
+    """TTS one sentence; on failure return "" (degrade to subtitle-only)."""
+    try:
+        return await tts_provider.synth(text, GUARD)
+    except Exception:
+        return ""
 
 
 @app.post("/api/chat")
@@ -74,12 +65,25 @@ async def chat(req: ChatReq):
     t_start = time.perf_counter()
 
     async def gen():
+        tts_tasks: dict[int, asyncio.Task] = {}
         try:
             yield sse("round", {"round_id": round_id})
             yield sse("state", {"state": "thinking", "round_id": round_id})
 
-            result = await llm_provider.generate(SESSION, text, GUARD)
-            if GUARD.is_dead(round_id):   # interrupted while thinking
+            # stream the LLM: each sentence goes to subtitle + TTS while the
+            # model is still generating the rest (pipelined, not serial).
+            seq = 0
+            result: dict | None = None
+            async for kind, payload in llm_provider.generate_stream(SESSION, text, GUARD):
+                if GUARD.is_dead(round_id):   # interrupted while thinking
+                    return
+                if kind == "sentence":
+                    yield sse("subtitle", {"seq": seq, "text": payload, "round_id": round_id})
+                    tts_tasks[seq] = asyncio.create_task(_synth_or_none(payload))
+                    seq += 1
+                elif kind == "final":
+                    result = payload
+            if result is None:
                 return
             SESSION.add_history("user", text)
             SESSION.add_history("assistant", result["say"])
@@ -100,20 +104,17 @@ async def chat(req: ChatReq):
 
             yield sse("state", {"state": "speaking", "round_id": round_id})
 
-            seq = 0
+            # sentences were synthesized in parallel during the LLM stream;
+            # flush audio events in order (usually already done, near-zero wait)
             tts_failed = False
-            for sent in split_sentences(result["say"]):
-                try:
-                    name = await tts_provider.synth(sent, GUARD)
-                except Exception:
-                    tts_failed = True          # degrade: subtitle only
-                    name = ""
+            for i in range(seq):
+                name = await tts_tasks[i]
                 if GUARD.is_dead(round_id):
                     return
-                yield sse("subtitle", {"seq": seq, "text": sent, "round_id": round_id})
                 if name:
-                    yield sse("audio", {"seq": seq, "url": f"/audio/{name}", "round_id": round_id})
-                seq += 1
+                    yield sse("audio", {"seq": i, "url": f"/audio/{name}", "round_id": round_id})
+                else:
+                    tts_failed = True          # degrade: subtitle only
             if tts_failed:
                 yield sse("notice", {"round_id": round_id, "message": "语音合成部分失败，本轮仅显示字幕"})
 
@@ -125,6 +126,10 @@ async def chat(req: ChatReq):
             raise
         except Exception as e:
             yield sse("error", {"round_id": round_id, "message": str(e)[:200]})
+        finally:
+            for t in tts_tasks.values():
+                if not t.done():
+                    t.cancel()                 # no orphan synths after abort
 
     return StreamingResponse(
         gen(),

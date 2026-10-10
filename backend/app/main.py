@@ -37,6 +37,27 @@ def _sid(request: Request, body_sid: str = "") -> str:
 app = FastAPI(title="mira-cafe", version="1.1.0")
 
 
+@app.on_event("startup")
+async def _startup_housekeeping() -> None:
+    """Bound on-disk growth: media caches older than 7 days are re-generated
+    on demand, so stale files are safe to drop. Runs in a thread - never
+    blocks the event loop."""
+    import asyncio as _aio
+
+    def _sweep() -> None:
+        import time as _time
+        cutoff = _time.time() - 7 * 86400
+        for d in (config.TTS_DIR, config.IMAGE_CACHE_DIR):
+            try:
+                for f in d.iterdir():
+                    if f.is_file() and f.stat().st_mtime < cutoff:
+                        f.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    _aio.get_event_loop().run_in_executor(None, _sweep)
+
+
 class ChatReq(BaseModel):
     text: str
     sid: str = ""

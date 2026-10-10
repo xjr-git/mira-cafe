@@ -18,6 +18,19 @@ from .. import config
 
 _jobs: dict[str, dict] = {}
 _counter = itertools.count(1)
+JOB_TTL_S = 3600            # poll results are only needed for minutes
+JOB_MAX = 500               # hard cap: drop oldest beyond this
+
+
+def _prune_jobs() -> None:
+    """Bound the job store: drop stale entries, then oldest overflow."""
+    now = time.time()
+    stale = [k for k, v in _jobs.items() if now - v.get("created", now) > JOB_TTL_S]
+    for k in stale:
+        _jobs.pop(k, None)
+    while len(_jobs) > JOB_MAX:
+        oldest = min(_jobs, key=lambda k: _jobs[k].get("created", 0))
+        _jobs.pop(oldest, None)
 
 PRESETS = [
     "/assets/polaroid1.jpg",
@@ -33,6 +46,7 @@ def _cache_key(prompt: str) -> str:
 
 
 async def submit(prompt: str) -> str:
+    _prune_jobs()
     job_id = f"job{next(_counter)}-{uuid.uuid4().hex[:6]}"
     _jobs[job_id] = {"status": "pending", "url": "", "created": time.time()}
     asyncio.get_event_loop().create_task(_run(job_id, prompt))

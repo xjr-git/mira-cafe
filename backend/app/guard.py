@@ -49,6 +49,11 @@ class RoundGuard:
                 m.interrupted = True
                 self.dead_rounds.add(m.round_id)
                 n += 1
+        # bound the set: any round far older than current is dead anyway
+        # (is_dead checks round_id != current_round first), so drop stale ids
+        if len(self.dead_rounds) > 1000:
+            floor = self.current_round - 1000
+            self.dead_rounds = {r for r in self.dead_rounds if r > floor}
         return n
 
     def patch(self, **kw) -> None:

@@ -16,6 +16,7 @@
 
   <!-- character (layered SVG, emotion/action driven) -->
   <div id="chara-wrap">
+  <div id="voice-ring" aria-hidden="true"></div>
   <svg id="chara" viewBox="0 0 420 560" data-emo="neutral" aria-label="Mira">
     <defs>
       <linearGradient id="coat" x1="0" y1="0" x2="0" y2="1">
@@ -117,6 +118,7 @@
       </g>
     </g>
   </svg>
+  <div id="think-bubble" aria-hidden="true"><i></i><i></i><i></i></div>
   </div>
 
   <!-- state badge -->
@@ -149,6 +151,13 @@
     <button id="ptt" title="按住说话">🎤<span>按住</span></button>
   </div>
   <div id="toast" class="hidden"></div>
+
+  <!-- intro title card (auto fade-out) -->
+  <div id="intro-card" aria-hidden="true">
+    <div class="t1">雨夜咖啡馆</div>
+    <div class="t2">MIRA</div>
+    <div class="t3">按住 🎤 或输入文字，开始今晚的对话</div>
+  </div>
 </div>
 <script type="module" src="/js/main.js"></script>
 </body>

@@ -37,12 +37,13 @@ export function setAction(name) {
 
 export function setTalk(on) {
   chara.classList.toggle('talking', !!on);
+  wrap.classList.toggle('talking', !!on);   // drives the voice-ring ripple
 }
 
 export function setUIState(state) {
   wrap.classList.remove('listening', 'thinking');
   if (state === 'listening') wrap.classList.add('listening');
-  if (state === 'thinking') wrap.classList.add('thinking');
+  if (state === 'thinking') { wrap.classList.add('thinking'); setAction('stir_coffee'); }
   const badge = document.getElementById('state-badge');
   badge.dataset.state = state;
   const text = { idle: '待机中', listening: '正在倾听…', thinking: '思考中…', speaking: '说话中…' };

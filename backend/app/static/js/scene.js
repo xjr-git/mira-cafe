@@ -42,6 +42,50 @@ export function rainStop() {
   canvas.style.opacity = '0';
   document.getElementById('bg-rain').classList.remove('active');
   document.getElementById('bg-clear').classList.add('active');
+  fadeRainAudio(0);                          // ambience follows the visuals
+}
+
+// ---- rain ambience (WebAudio-synthesized, zero assets) ----
+// Brown-ish noise through a lowpass filter reads as distant rain.
+// Starts on the first user gesture (mobile autoplay policy), fades in.
+let rainGain = null;
+let rainCtx = null;
+
+export function startAmbience() {
+  if (rainGain) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    rainCtx = new AC();
+    const seconds = 2 * rainCtx.sampleRate;
+    const buf = rainCtx.createBuffer(1, seconds, rainCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < data.length; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02;
+      data[i] = last * 3.5;
+    }
+    const src = rainCtx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const lp = rainCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 850;
+    rainGain = rainCtx.createGain();
+    rainGain.gain.value = 0;
+    src.connect(lp).connect(rainGain).connect(rainCtx.destination);
+    src.start();
+    rainGain.gain.linearRampToValueAtTime(0.055, rainCtx.currentTime + 2.8);
+  } catch { /* audio unavailable: scene still works silently */ }
+}
+
+function fadeRainAudio(target) {
+  if (!rainGain || !rainCtx) return;
+  try {
+    rainGain.gain.cancelScheduledValues(rainCtx.currentTime);
+    rainGain.gain.setValueAtTime(rainGain.gain.value, rainCtx.currentTime);
+    rainGain.gain.linearRampToValueAtTime(target, rainCtx.currentTime + 3);
+  } catch { /* ignore */ }
 }
 
 // ---- polaroid flow ----

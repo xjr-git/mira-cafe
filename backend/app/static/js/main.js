@@ -1,7 +1,7 @@
 // main.js — client orchestrator: state machine, SSE protocol with round
 // filtering (stale-response protection), audio queue, interruption.
 import { setEmotion, setAction, setTalk, setUIState } from './character.js';
-import { rainStop, showPolaroid, toast } from './scene.js';
+import { rainStop, showPolaroid, toast, startAmbience } from './scene.js';
 import { bindVoice } from './voice.js';
 
 const $ = (id) => document.getElementById(id);
@@ -164,8 +164,12 @@ bindVoice((text) => { input.value = ''; chat(text); }, (src) => interrupt(src), 
   if (!submitted && state === 'listening' && !curAudio && !playQueue.length) setState('idle');
 });
 
-// unlock audio on first gesture (mobile autoplay policy)
-const unlock = () => { const a = new Audio(); a.play().then(() => a.pause()).catch(() => {}); removeEventListener('pointerdown', unlock); };
+// unlock audio on first gesture (mobile autoplay policy) + rain ambience
+const unlock = () => {
+  startAmbience();                            // synthesized rain, fades in
+  const a = new Audio(); a.play().then(() => a.pause()).catch(() => {});
+  removeEventListener('pointerdown', unlock);
+};
 addEventListener('pointerdown', unlock);
 
 // ---- boot ----

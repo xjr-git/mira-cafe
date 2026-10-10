@@ -116,3 +116,54 @@ body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; col
   #chara-wrap { bottom: 19vh; width: 86vw; }
   #polaroid { right: 4vw; top: 10vh; width: 40vw; }
 }
+
+/* ============ UX polish v2: thinking show / voice ring / intro card ============ */
+
+/* -- thinking: gaze drifts away + slight head tilt + "..." bubble -- */
+#chara .eyes { transition: transform .7s ease; }
+#chara-wrap.thinking #chara .eyes { transform: translate(-13px, -5px); }
+#head { transform-box: fill-box; transform-origin: 50% 96%; transition: transform .8s ease; }
+#chara-wrap.thinking #head { transform: rotate(-3.5deg); }
+
+#think-bubble { position: absolute; left: 66%; top: -1vh; display: none; gap: 5px;
+  padding: 10px 13px; background: rgba(250,246,238,.94); border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+#think-bubble::after { content: ''; position: absolute; left: 14px; bottom: -5px;
+  width: 10px; height: 10px; background: inherit; transform: rotate(45deg); border-radius: 2px; }
+#chara-wrap.thinking #think-bubble { display: flex; animation: bubbleIn .35s ease; }
+#think-bubble i { width: 7px; height: 7px; border-radius: 50%; background: #8a6b4a;
+  animation: dotBounce 1.1s ease-in-out infinite; }
+#think-bubble i:nth-child(2) { animation-delay: .15s; }
+#think-bubble i:nth-child(3) { animation-delay: .3s; }
+@keyframes dotBounce { 0%, 100% { transform: translateY(0); opacity: .45 } 50% { transform: translateY(-6px); opacity: 1 } }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+
+/* -- voice ring: expanding ripple while listening (cyan) / speaking (warm) -- */
+#voice-ring { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%);
+  width: min(50vh, 62vw); aspect-ratio: 1; border-radius: 50%; opacity: 0; pointer-events: none;
+  border: 2px solid rgba(140, 220, 255, .6);
+  box-shadow: 0 0 42px rgba(120, 200, 255, .25), inset 0 0 42px rgba(120, 200, 255, .14); }
+#chara-wrap.listening #voice-ring { opacity: 1; animation: ringPulse 1.5s ease-out infinite; }
+#chara-wrap.talking #voice-ring { opacity: 1; border-color: rgba(255, 205, 120, .65);
+  box-shadow: 0 0 46px rgba(255, 190, 90, .3), inset 0 0 46px rgba(255, 190, 90, .16);
+  animation: ringPulse 1.1s ease-out infinite; }
+@keyframes ringPulse {
+  0%   { transform: translateX(-50%) scale(.86); opacity: .85 }
+  100% { transform: translateX(-50%) scale(1.14); opacity: 0 }
+}
+
+/* -- intro title card: first-impression moment, auto fade-out -- */
+#intro-card { position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6vh;
+  background: radial-gradient(ellipse at 50% 38%, rgba(32, 27, 42, .9), rgba(9, 9, 15, .97));
+  animation: introCard 3.4s ease forwards; }
+#intro-card .t1 { color: #e8dcc8; font-size: clamp(22px, 4.5vw, 34px); letter-spacing: .42em; text-indent: .42em; }
+#intro-card .t2 { color: #f0b35e; font-size: clamp(40px, 9vw, 74px); font-weight: 700;
+  letter-spacing: .24em; text-indent: .24em; text-shadow: 0 0 26px rgba(240, 179, 94, .4); }
+#intro-card .t3 { color: #9aa3b5; font-size: clamp(12px, 2.6vw, 15px); letter-spacing: .12em; }
+@keyframes introCard {
+  0%   { opacity: 0 }
+  12%  { opacity: 1 }
+  68%  { opacity: 1 }
+  100% { opacity: 0; visibility: hidden }
+}

@@ -1,0 +1,118 @@
+/* ============ Rainy Night Cafe · Mira — scene styles ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; background: #0b0e14; }
+body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color: #e9e4da; -webkit-tap-highlight-color: transparent; }
+
+#scene { position: fixed; inset: 0; }
+
+/* ---- background layers ---- */
+.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.6s ease; }
+.bg.active { opacity: 1; }
+#rain-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 1.5s ease; }
+#vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(5,8,16,.55) 100%); }
+
+/* ---- character ---- */
+#chara-wrap { position: absolute; left: 50%; bottom: 17vh; transform: translateX(-50%);
+  width: min(64vh, 78vw); display: flex; justify-content: center; }
+#chara { width: 100%; height: auto; filter: drop-shadow(0 18px 30px rgba(0,0,0,.45));
+  transition: transform .8s ease; }
+.upper { transform-box: fill-box; transform-origin: 50% 90%; animation: breathe 3.6s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { transform: translateY(0) } 50% { transform: translateY(4px) } }
+
+/* emotions: only the matching eye/mouth group is visible */
+#chara .eyes, #chara .mouth { display: none; transform-box: fill-box; transform-origin: center; transition: transform .1s; }
+#chara[data-emo="neutral"]   #eyes-normal,   #chara[data-emo="neutral"]   #mouth-flat   { display: block; }
+#chara[data-emo="happy"]     #eyes-happy,    #chara[data-emo="happy"]     #mouth-smile  { display: block; }
+#chara[data-emo="shy"]       #eyes-shy,      #chara[data-emo="shy"]       #mouth-o      { display: block; }
+#chara[data-emo="shy"]       #blush { opacity: 1; transition: opacity .6s; }
+#chara[data-emo="sad"]       #eyes-sad,      #chara[data-emo="sad"]       #mouth-sad    { display: block; }
+#chara[data-emo="surprised"] #eyes-surprised,#chara[data-emo="surprised"] #mouth-o      { display: block; }
+
+/* blink (neutral only) */
+#chara.blink #eyes-normal { transform: scaleY(0.12); }
+
+/* talking: override mouth with animated talk mouth */
+#chara.talking .mouth { display: none !important; }
+#chara.talking #mouth-talk { display: block !important; animation: flap .26s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes flap { from { transform: scaleY(.25) } to { transform: scaleY(1) } }
+
+/* actions */
+#cup-group { transform-box: fill-box; transform-origin: 40% 100%; }
+#chara[data-action="stir_coffee"] #cup-group { animation: stir 1.5s ease-in-out 2; }
+@keyframes stir { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-9deg) } 75% { transform: rotate(7deg) } }
+
+#camera { transform-box: fill-box; transform-origin: center; transition: opacity .5s, transform .5s; transform: translateY(14px); }
+#chara[data-action="look_camera"] #camera { opacity: 1; transform: translateY(0); }
+
+#chara[data-action="gaze_window"] #head { transform-box: fill-box; transform-origin: center; }
+#chara[data-action="gaze_window"] #head { animation: gaze 2.4s ease-in-out; }
+@keyframes gaze { 0%,100% { transform: rotate(0) } 30%,70% { transform: rotate(-5deg) translateX(-5px) } }
+#chara[data-action="gaze_window"] .pupil { transform: translateX(-5px); transition: transform .5s; }
+
+/* listening: character leans in slightly */
+#chara-wrap.listening #chara { transform: scale(1.035) translateY(-4px); }
+/* thinking: gentle sway */
+#chara-wrap.thinking #chara { animation: sway 2.2s ease-in-out infinite; }
+@keyframes sway { 0%,100% { transform: rotate(0) } 50% { transform: rotate(-1.6deg) } }
+
+/* ---- state badge ---- */
+#state-badge { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 14px;
+  display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+  background: rgba(12,16,26,.66); backdrop-filter: blur(6px); font-size: 13px; letter-spacing: .5px; }
+#state-dot { width: 9px; height: 9px; border-radius: 50%; background: #8a93a6; transition: background .3s, box-shadow .3s; }
+#state-badge[data-state="idle"]      #state-dot { background: #8a93a6; }
+#state-badge[data-state="listening"] #state-dot { background: #ff5d5d; box-shadow: 0 0 10px #ff5d5d; }
+#state-badge[data-state="thinking"]  #state-dot { background: #ffc94d; box-shadow: 0 0 10px #ffc94d; animation: pulse 1s infinite; }
+#state-badge[data-state="speaking"]  #state-dot { background: #6ee7a0; box-shadow: 0 0 10px #6ee7a0; animation: pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity: .45 } }
+
+/* ---- HUD ---- */
+#hud { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; display: flex; gap: 8px; }
+.chip { padding: 5px 10px; border-radius: 999px; background: rgba(12,16,26,.66); font-size: 11px; color: #b9c2d0; text-decoration: none; }
+#hud-mode.mock { color: #ffd479; }
+
+/* ---- subtitle ---- */
+#subtitle-bar { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(17vh + 2vh);
+  width: min(86vw, 640px); text-align: center; pointer-events: none; }
+#subtitle { display: inline-block; padding: 12px 20px; border-radius: 14px; background: rgba(10,13,22,.78);
+  backdrop-filter: blur(8px); font-size: clamp(15px, 2.4vh, 19px); line-height: 1.65; color: #f3eee4;
+  min-height: 1.6em; max-width: 100%; box-shadow: 0 6px 22px rgba(0,0,0,.35);
+  text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+#subtitle:empty { opacity: 0; }
+
+/* ---- controls ---- */
+#controls { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 2.2vh);
+  width: min(92vw, 680px); display: flex; gap: 10px; align-items: center; }
+#text-input { flex: 1; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(14,18,28,.78); color: #f0ebe1; padding: 0 16px; font-size: 15px; outline: none; backdrop-filter: blur(8px); }
+#text-input:focus { border-color: rgba(255,209,121,.55); }
+#controls button { height: 46px; min-width: 52px; border: none; border-radius: 12px; font-size: 15px; cursor: pointer;
+  background: rgba(230,180,90,.92); color: #221a0c; font-weight: 600; transition: transform .1s, filter .2s; }
+#controls button:active { transform: scale(.94); }
+#ptt { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; padding: 0 14px; }
+#ptt span { font-size: 10px; }
+#ptt.recording { background: #ff5d5d; color: #fff; animation: pulse 1s infinite; }
+#interrupt { background: rgba(255,93,93,.92) !important; color: #fff !important; }
+.hidden { display: none !important; }
+
+/* ---- polaroid ---- */
+#polaroid { position: absolute; right: 6vw; top: 14vh; width: min(34vw, 220px); z-index: 30;
+  transform: rotate(6deg) scale(.6); opacity: 0; transition: all .7s cubic-bezier(.2,1.4,.4,1); pointer-events: auto; }
+#polaroid.show { opacity: 1; transform: rotate(6deg) scale(1); }
+.ph-frame { background: #f6f3ea; padding: 10px 10px 34px; border-radius: 4px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.5); position: relative; }
+.ph-frame img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #ddd;
+  filter: blur(14px) sepia(.8) brightness(1.5) contrast(.8); transition: filter 2.6s ease; }
+.ph-frame img.developed { filter: blur(0) sepia(0) brightness(1) contrast(1); }
+.ph-shine { position: absolute; inset: 10px 10px 34px; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.35) 48%, transparent 56%); pointer-events: none; }
+.ph-caption { position: absolute; bottom: 8px; left: 12px; font-size: 11px; color: #7c7466; }
+
+/* ---- toast ---- */
+#toast { position: absolute; top: 12vh; left: 50%; transform: translateX(-50%); padding: 10px 18px;
+  background: rgba(90,30,30,.9); color: #ffd9d9; border-radius: 10px; font-size: 13px; z-index: 50; max-width: 86vw; text-align: center; }
+
+@media (max-width: 640px) {
+  #chara-wrap { bottom: 19vh; width: 86vw; }
+  #polaroid { right: 4vw; top: 10vh; width: 40vw; }
+}

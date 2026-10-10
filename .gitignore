@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+backend/app/runtime/tts/
+backend/app/runtime/image_cache/
+.DS_Store

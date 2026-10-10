@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>雨夜咖啡馆 · Mira</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="scene">
+  <!-- background layers (crossfade) -->
+  <img id="bg-rain"  class="bg active" src="/assets/bg_rain.png"  alt="">
+  <img id="bg-clear" class="bg"        src="/assets/bg_clear.png" alt="">
+  <canvas id="rain-canvas"></canvas>
+  <div id="vignette"></div>
+
+  <!-- character (layered SVG, emotion/action driven) -->
+  <div id="chara-wrap">
+  <svg id="chara" viewBox="0 0 420 560" data-emo="neutral" aria-label="Mira">
+    <defs>
+      <linearGradient id="coat" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#e09a4a"/><stop offset="1" stop-color="#b96f2a"/>
+      </linearGradient>
+      <radialGradient id="lampGlow" cx="0.5" cy="0.35" r="0.6">
+        <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.5"/>
+        <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- warm lamp glow behind character -->
+    <ellipse cx="210" cy="150" rx="200" ry="170" fill="url(#lampGlow)"/>
+
+    <g id="upper" class="upper">
+      <!-- coat / shoulders -->
+      <path d="M85 560 L95 448 Q100 396 150 378 L270 378 Q320 396 325 448 L335 560 Z" fill="url(#coat)"/>
+      <path d="M150 378 L210 430 L270 378 L270 400 L210 452 L150 400 Z" fill="#a35f22"/>
+      <path d="M206 392 L214 392 L212 470 L208 470 Z" fill="#7c4416"/>
+
+      <!-- head -->
+      <g id="head">
+        <ellipse cx="210" cy="205" rx="80" ry="84" fill="#f7dcc8"/>
+        <!-- ears -->
+        <ellipse cx="132" cy="212" rx="10" ry="14" fill="#f0cdb6"/>
+        <ellipse cx="288" cy="212" rx="10" ry="14" fill="#f0cdb6"/>
+        <!-- hair back -->
+        <path d="M126 210 Q118 118 210 108 Q302 118 294 210 Q296 268 276 300 L286 330 Q258 344 240 322 L240 250 L180 250 L180 322 Q162 344 134 330 L144 300 Q124 268 126 210 Z" fill="#7a4a2f"/>
+        <!-- bangs -->
+        <path d="M136 190 Q140 116 210 112 Q280 116 284 190 Q262 150 234 158 Q226 132 204 152 Q186 132 168 156 Q148 152 136 190 Z" fill="#8a563a"/>
+        <!-- silver star hairpin -->
+        <path id="hairpin" d="M272 150 l4.5 9 10 1.5 -7 7 1.6 10 -9.1 -4.8 -9.1 4.8 1.6 -10 -7 -7 10 -1.5 Z" fill="#d9dde6" stroke="#aab3c2" stroke-width="1.5"/>
+        <!-- neck -->
+        <rect x="196" y="282" width="28" height="26" rx="10" fill="#f0cdb6"/>
+
+        <!-- eyes -->
+        <g class="eyes" id="eyes-normal">
+          <ellipse class="pupil" cx="182" cy="212" rx="10" ry="13" fill="#4a2e1c"/>
+          <ellipse class="pupil" cx="238" cy="212" rx="10" ry="13" fill="#4a2e1c"/>
+          <circle cx="185" cy="207" r="3" fill="#fff"/><circle cx="241" cy="207" r="3" fill="#fff"/>
+          <path d="M168 200 Q182 192 196 199" stroke="#5d3a22" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M224 199 Q238 192 252 200" stroke="#5d3a22" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <g class="eyes" id="eyes-happy">
+          <path d="M170 212 Q182 200 194 212" stroke="#4a2e1c" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path d="M226 212 Q238 200 250 212" stroke="#4a2e1c" stroke-width="5" fill="none" stroke-linecap="round"/>
+        </g>
+        <g class="eyes" id="eyes-shy">
+          <path d="M170 216 Q182 208 194 215" stroke="#4a2e1c" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M226 215 Q238 208 250 216" stroke="#4a2e1c" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle class="pupil" cx="184" cy="221" rx="4" ry="4" fill="#4a2e1c"/>
+          <circle class="pupil" cx="236" cy="221" rx="4" ry="4" fill="#4a2e1c"/>
+        </g>
+        <g class="eyes" id="eyes-sad">
+          <ellipse class="pupil" cx="182" cy="214" rx="8" ry="10" fill="#4a2e1c"/>
+          <ellipse class="pupil" cx="238" cy="214" rx="8" ry="10" fill="#4a2e1c"/>
+          <path d="M168 206 Q182 202 196 206" stroke="#5d3a22" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M224 206 Q238 202 252 206" stroke="#5d3a22" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M166 198 Q180 190 194 197" stroke="#5d3a22" stroke-width="3" fill="none" stroke-linecap="round" transform="rotate(-8 180 194)"/>
+          <path d="M226 197 Q240 190 254 198" stroke="#5d3a22" stroke-width="3" fill="none" stroke-linecap="round" transform="rotate(8 240 194)"/>
+        </g>
+        <g class="eyes" id="eyes-surprised">
+          <circle cx="182" cy="212" r="15" fill="#fff" stroke="#5d3a22" stroke-width="2.5"/>
+          <circle cx="238" cy="212" r="15" fill="#fff" stroke="#5d3a22" stroke-width="2.5"/>
+          <circle class="pupil" cx="182" cy="212" r="6" fill="#4a2e1c"/>
+          <circle class="pupil" cx="238" cy="212" r="6" fill="#4a2e1c"/>
+        </g>
+
+        <!-- blush -->
+        <g id="blush" opacity="0">
+          <ellipse cx="164" cy="236" rx="13" ry="7" fill="#f3a08e" opacity="0.55"/>
+          <ellipse cx="256" cy="236" rx="13" ry="7" fill="#f3a08e" opacity="0.55"/>
+        </g>
+
+        <!-- mouths -->
+        <g class="mouth" id="mouth-flat"><path d="M198 252 L222 252" stroke="#a0522d" stroke-width="3.5" stroke-linecap="round"/></g>
+        <g class="mouth" id="mouth-smile"><path d="M196 248 Q210 262 224 248" stroke="#a0522d" stroke-width="3.5" fill="none" stroke-linecap="round"/></g>
+        <g class="mouth" id="mouth-sad"><path d="M198 256 Q210 246 222 256" stroke="#a0522d" stroke-width="3.5" fill="none" stroke-linecap="round"/></g>
+        <g class="mouth" id="mouth-o"><ellipse cx="210" cy="254" rx="7" ry="9" fill="#8c3f24"/></g>
+        <g class="mouth" id="mouth-talk"><ellipse cx="210" cy="254" rx="9" ry="11" fill="#8c3f24"/><ellipse cx="210" cy="258" rx="5" ry="4" fill="#e8a08c"/></g>
+      </g>
+
+      <!-- cup in hand -->
+      <g id="cup-group">
+        <path d="M282 392 Q292 386 302 392" stroke="#f0cdb6" stroke-width="0" fill="none"/>
+        <ellipse cx="292" cy="386" rx="26" ry="7" fill="#f5efe6"/>
+        <path d="M266 386 L268 414 Q292 428 316 414 L318 386 Z" fill="#fdf9f2"/>
+        <path d="M318 392 Q334 394 330 406 Q327 416 314 412" stroke="#fdf9f2" stroke-width="5" fill="none"/>
+        <path d="M280 372 Q278 362 284 356 M296 370 Q294 358 300 352" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.4" stroke-linecap="round"/>
+      </g>
+
+      <!-- camera prop (look_camera action) -->
+      <g id="camera" opacity="0">
+        <rect x="238" y="342" width="52" height="34" rx="6" fill="#3c3a45"/>
+        <rect x="250" y="336" width="18" height="10" rx="3" fill="#3c3a45"/>
+        <circle cx="264" cy="359" r="11" fill="#20202a"/>
+        <circle cx="264" cy="359" r="6" fill="#4f6d8f"/>
+        <circle cx="260" cy="355" r="2" fill="#cfe3ff" opacity="0.8"/>
+      </g>
+    </g>
+  </svg>
+  </div>
+
+  <!-- state badge -->
+  <div id="state-badge"><span id="state-dot"></span><span id="state-text">待机中</span></div>
+
+  <!-- observability HUD -->
+  <div id="hud">
+    <span id="hud-mode" class="chip">MOCK</span>
+    <span id="hud-latency" class="chip">-- ms</span>
+    <a class="chip" href="/metrics" target="_blank">metrics</a>
+  </div>
+
+  <!-- polaroid overlay -->
+  <div id="polaroid" class="hidden">
+    <div class="ph-frame">
+      <img id="ph-img" alt="Mira 的拍立得">
+      <div class="ph-shine"></div>
+      <div class="ph-caption" id="ph-caption">（她正在挑照片……）</div>
+    </div>
+  </div>
+
+  <!-- subtitle -->
+  <div id="subtitle-bar"><div id="subtitle"></div></div>
+
+  <!-- controls -->
+  <div id="controls">
+    <button id="interrupt" class="hidden" title="打断 Mira">⏹ 打断</button>
+    <input id="text-input" type="text" placeholder="和 Mira 说点什么……" autocomplete="off" enterkeyhint="send">
+    <button id="send" title="发送">➤</button>
+    <button id="ptt" title="按住说话">🎤<span>按住</span></button>
+  </div>
+  <div id="toast" class="hidden"></div>
+</div>
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

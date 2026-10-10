@@ -20,9 +20,9 @@ _jobs: dict[str, dict] = {}
 _counter = itertools.count(1)
 
 PRESETS = [
-    "/assets/polaroid1.png",
-    "/assets/polaroid2.png",
-    "/assets/polaroid3.png",
+    "/assets/polaroid1.jpg",
+    "/assets/polaroid2.jpg",
+    "/assets/polaroid3.jpg",
 ]
 MOCK_DELAY_S = 2.2          # "developing" wait so the moment feels real
 GENERATE_TIMEOUT_S = 45

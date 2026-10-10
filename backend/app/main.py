@@ -16,7 +16,7 @@ import json
 import re
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -26,18 +26,25 @@ from .guard import RoundGuard
 from .providers import image as image_provider
 from .providers import llm as llm_provider
 from .providers import tts as tts_provider
-from .session import SESSION
+from .session import SM
 
-app = FastAPI(title="mira-cafe", version="1.0.0")
-GUARD = RoundGuard()
+
+def _sid(request: Request, body_sid: str = "") -> str:
+    """Client id: X-Sid header wins, body fallback, else shared 'anon'."""
+    return request.headers.get("x-sid") or (body_sid or "")[:64] or "anon"
+
+
+app = FastAPI(title="mira-cafe", version="1.1.0")
 
 
 class ChatReq(BaseModel):
     text: str
+    sid: str = ""
 
 
 class InterruptReq(BaseModel):
     round_id: int
+    sid: str = ""
 
 
 class ImageReq(BaseModel):
@@ -51,16 +58,18 @@ def sse(event: str, data: dict) -> str:
 async def _synth_or_none(text: str) -> str:
     """TTS one sentence; on failure return "" (degrade to subtitle-only)."""
     try:
-        return await tts_provider.synth(text, GUARD)
+        return await tts_provider.synth(text)
     except Exception:
         return ""
 
 
 @app.post("/api/chat")
-async def chat(req: ChatReq):
+async def chat(req: ChatReq, request: Request):
     text = (req.text or "").strip()
     if not text:
         raise HTTPException(400, "empty text")
+    sess = SM.get(_sid(request, req.sid))
+    GUARD = sess.guard
     round_id = GUARD.begin(text)
     t_start = time.perf_counter()
 
@@ -74,7 +83,7 @@ async def chat(req: ChatReq):
             # model is still generating the rest (pipelined, not serial).
             seq = 0
             result: dict | None = None
-            async for kind, payload in llm_provider.generate_stream(SESSION, text, GUARD):
+            async for kind, payload in llm_provider.generate_stream(sess, text, GUARD):
                 if GUARD.is_dead(round_id):   # interrupted while thinking
                     return
                 if kind == "sentence":
@@ -85,8 +94,8 @@ async def chat(req: ChatReq):
                     result = payload
             if result is None:
                 return
-            SESSION.add_history("user", text)
-            SESSION.add_history("assistant", result["say"])
+            sess.add_history("user", text)
+            sess.add_history("assistant", result["say"])
 
             if result.get("fallback"):
                 yield sse("notice", {
@@ -139,8 +148,9 @@ async def chat(req: ChatReq):
 
 
 @app.post("/api/interrupt")
-async def interrupt(req: InterruptReq):
-    n = GUARD.mark_interrupted(req.round_id)
+async def interrupt(req: InterruptReq, request: Request):
+    guard = SM.get(_sid(request, req.sid)).guard
+    n = guard.mark_interrupted(req.round_id)
     return {"ok": True, "cancelled": n}
 
 
@@ -156,26 +166,30 @@ async def image_status(job_id: str):
 
 
 @app.get("/api/state")
-async def state():
+async def state(request: Request):
+    sess = SM.get(_sid(request))
     return {
-        "node": SESSION.node,
-        "turns": len(SESSION.history) // 2,
-        "media_shown": SESSION.media_shown,
-        "rain_stopped": SESSION.rain_stopped,
+        "node": sess.node,
+        "turns": len(sess.history) // 2,
+        "media_shown": sess.media_shown,
+        "rain_stopped": sess.rain_stopped,
         "mock_mode": not config.DASHSCOPE_API_KEY,
     }
 
 
 @app.post("/api/reset")
-async def reset():
-    SESSION.reset()
+async def reset(request: Request):
+    SM.get(_sid(request)).reset()
     return {"ok": True}
 
 
 @app.get("/api/metrics")
 async def metrics():
-    rows = [m.__dict__ for m in GUARD.metrics]
-    done = [m for m in GUARD.metrics if not m.interrupted and m.total_ms]
+    rows: list = []
+    for g in SM.all_guards():
+        rows.extend(g.metrics)
+    rows.sort(key=lambda m: m.round_id)
+    done = [m for m in rows if not m.interrupted and m.total_ms]
     summary = {}
     if done:
         summary = {
@@ -189,11 +203,15 @@ async def metrics():
 
 @app.get("/metrics", response_class=HTMLResponse)
 async def metrics_page():
-    rows = "".join(
+    rows: list = []
+    for g in SM.all_guards():
+        rows.extend(g.metrics)
+    rows.sort(key=lambda m: m.round_id)
+    html_rows = "".join(
         f"<tr><td>{m.round_id}</td><td>{m.text}</td><td>{m.llm_ms}</td>"
         f"<td>{m.tts_first_ms}</td><td>{m.total_ms}</td>"
         f"<td>{'yes' if m.interrupted else ''}</td></tr>"
-        for m in reversed(GUARD.metrics[-30:])
+        for m in reversed(rows[-30:])
     )
     return f"""<html><head><meta charset="utf-8"><title>mira-cafe metrics</title>
 <style>body{{font-family:monospace;background:#111;color:#ddd;padding:24px}}

@@ -22,6 +22,14 @@ let curAudio = null;
 let curSubSeq = -1;
 let tSend = 0;
 
+// stable client id: isolates my story session from every other visitor
+const SID = (() => {
+  let s = localStorage.getItem('mira_sid');
+  if (!s) { s = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); localStorage.setItem('mira_sid', s); }
+  return s;
+})();
+const sidHeaders = () => ({ 'Content-Type': 'application/json', 'X-Sid': SID });
+
 function setState(s) {
   state = s;
   setUIState(s);
@@ -93,7 +101,7 @@ async function interrupt(source) {
   if (latestRound > barredRound) {
     barredRound = latestRound;                     // everything older is dead
     fetch('/api/interrupt', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: sidHeaders(),
       body: JSON.stringify({ round_id: latestRound }),
       keepalive: true,
     }).catch(() => {});
@@ -115,7 +123,7 @@ async function chat(text) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: sidHeaders(),
       body: JSON.stringify({ text }),
       signal: ctrl.signal,
     });

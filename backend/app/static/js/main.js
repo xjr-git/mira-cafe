@@ -23,6 +23,7 @@ function setState(s) {
   setUIState(s);
   stopBtn.classList.toggle('hidden', s !== 'speaking');
   if (s === 'idle') { subtitleEl.textContent = ''; }
+  if (s === 'listening') { subtitleEl.textContent = '正在倾听…（松开结束，最长 20 秒）'; }
 }
 
 // ---- audio queue ----
@@ -158,7 +159,10 @@ function applyDirective(d) {
 sendBtn.addEventListener('click', () => { const t = input.value.trim(); if (t) { input.value = ''; chat(t); } });
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendBtn.click(); });
 stopBtn.addEventListener('click', () => interrupt('button'));
-bindVoice((text) => { input.value = ''; chat(text); }, (src) => interrupt(src));
+bindVoice((text) => { input.value = ''; chat(text); }, (src) => interrupt(src), (submitted) => {
+  // released with nothing recognized -> leave the dead listening state
+  if (!submitted && state === 'listening' && !curAudio && !playQueue.length) setState('idle');
+});
 
 // unlock audio on first gesture (mobile autoplay policy)
 const unlock = () => { const a = new Audio(); a.play().then(() => a.pause()).catch(() => {}); removeEventListener('pointerdown', unlock); };

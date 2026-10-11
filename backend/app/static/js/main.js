@@ -1,6 +1,6 @@
 // main.js — client orchestrator: state machine, SSE protocol with round
 // filtering (stale-response protection), audio queue, interruption.
-import { setEmotion, setAction, setTalk, setUIState } from './character.js';
+import { setEmotion, setAction, setTalk, setUIState, startLipSync, stopLipSync } from './character.js';
 import { rainStop, showPolaroid, toast, startAmbience } from './scene.js';
 import { bindVoice } from './voice.js';
 
@@ -66,6 +66,7 @@ function playNext() {
   audio.preload = 'auto';
   curAudio = audio;
   setTalk(true);
+  startLipSync(audio);
   audio.onended = () => nextAfter(audio);
   audio.onerror = () => { toast('语音播放失败，仅显示字幕'); nextAfter(audio); };
   audio.play().catch(() => {
@@ -85,10 +86,11 @@ function playNext() {
   });
 }
 function nextAfter(audio) {
-  if (curAudio === audio) { curAudio = null; playNext(); }
+  if (curAudio === audio) { stopLipSync(); curAudio = null; playNext(); }
 }
 function stopPlayback() {
   playQueue = [];
+  stopLipSync();
   if (curAudio) { try { curAudio.pause(); } catch {} curAudio = null; }
   setTalk(false);
 }

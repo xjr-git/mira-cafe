@@ -20,22 +20,25 @@ body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; col
 .upper { transform-box: fill-box; transform-origin: 50% 90%; animation: breathe 3.6s ease-in-out infinite; }
 @keyframes breathe { 0%,100% { transform: translateY(0) } 50% { transform: translateY(4px) } }
 
-/* emotions: only the matching eye/mouth group is visible */
-#chara .eyes, #chara .mouth { display: none; transform-box: fill-box; transform-origin: center; transition: transform .1s; }
-#chara[data-emo="neutral"]   #eyes-normal,   #chara[data-emo="neutral"]   #mouth-flat   { display: block; }
-#chara[data-emo="happy"]     #eyes-happy,    #chara[data-emo="happy"]     #mouth-smile  { display: block; }
-#chara[data-emo="shy"]       #eyes-shy,      #chara[data-emo="shy"]       #mouth-o      { display: block; }
-#chara[data-emo="shy"]       #blush { opacity: 1; transition: opacity .6s; }
-#chara[data-emo="sad"]       #eyes-sad,      #chara[data-emo="sad"]       #mouth-sad    { display: block; }
-#chara[data-emo="surprised"] #eyes-surprised,#chara[data-emo="surprised"] #mouth-o      { display: block; }
+/* emotions: crossfade the matching eye/mouth group in (no hard cuts) */
+#chara .eyes, #chara .mouth { opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .32s ease, transform .1s; }
+#chara[data-emo="neutral"]   #eyes-normal,   #chara[data-emo="neutral"]   #mouth-flat   { opacity: 1; }
+#chara[data-emo="happy"]     #eyes-happy,    #chara[data-emo="happy"]     #mouth-smile  { opacity: 1; }
+#chara[data-emo="shy"]       #eyes-shy,      #chara[data-emo="shy"]       #mouth-o      { opacity: 1; }
+#chara[data-emo="sad"]       #eyes-sad,      #chara[data-emo="sad"]       #mouth-sad    { opacity: 1; }
+#chara[data-emo="surprised"] #eyes-surprised,#chara[data-emo="surprised"] #mouth-o      { opacity: 1; }
+#blush { transition: opacity .6s; }
+#chara[data-emo="shy"]       #blush { opacity: 1; }
 
 /* blink (neutral only) */
 #chara.blink #eyes-normal { transform: scaleY(0.12); }
 
 /* talking: override mouth with animated talk mouth */
-#chara.talking .mouth { display: none !important; }
-#chara.talking #mouth-talk { display: block !important; animation: flap .26s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+#chara.talking .mouth { opacity: 0 !important; }
+#chara.talking #mouth-talk { opacity: 1 !important; animation: flap .26s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
 @keyframes flap { from { transform: scaleY(.25) } to { transform: scaleY(1) } }
+/* audio-driven lip sync: JS owns the mouth transform, CSS flap is off */
+#chara.lipsync #mouth-talk { animation: none !important; }
 
 /* actions */
 #cup-group { transform-box: fill-box; transform-origin: 40% 100%; }
@@ -167,3 +170,12 @@ body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; col
   68%  { opacity: 1 }
   100% { opacity: 0; visibility: hidden }
 }
+
+/* ============ lifelike v3: idle micro-movements ============ */
+#chara .pupil { transition: transform .4s ease; }
+#chara.glance-l .pupil { transform: translateX(-5px); }
+#chara.glance-r .pupil { transform: translateX(5px); }
+#chara.tilt-l #head { transform: rotate(2.4deg); }
+#chara.tilt-r #head { transform: rotate(-2.4deg); }
+#chara.nod #head { animation: nodk .9s ease; }
+@keyframes nodk { 0%,100% { transform: rotate(0) } 45% { transform: rotate(3.4deg) } }
